@@ -1,0 +1,32 @@
+{
+  "name": "reminder-bot",
+  "version": "1.0.0",
+  "description": "The Telegram bot that helps to organize repetitive tasks",
+  "main": "index.js",
+  "scripts": {
+    "start": "babel-node index --presets=env",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nkornilov/reminder-bot.git"
+  },
+  "keywords": [
+    "bot",
+    "telegram",
+    "life-management"
+  ],
+  "author": "Nikita Kornilov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nkornilov/reminder-bot/issues"
+  },
+  "homepage": "https://github.com/nkornilov/reminder-bot#readme",
+  "dependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.7.0",
+    "express": "^4.16.4",
+    "lodash": "^4.17.11",
+    "node-telegram-bot-api": "^0.30.0"
+  }
+}
