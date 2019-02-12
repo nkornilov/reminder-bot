@@ -10,6 +10,7 @@ exports.initialize = function() {
     var dayMealsCounter = 0;
     var timerId = null;
     var photos = ['../images/1.jpg', '../images/2.jpg', './images/3.jpg', './images/4.jpg', './images/5.jpg'];
+    var trelloBoards = null;
     var intervals = [{
       time: 2 * 1000 * 60,
       text: 'Раз в 2 мин'
@@ -31,13 +32,13 @@ exports.initialize = function() {
     
       switch(message.text) {
         case 'Хочу посмотреть доски':
-          getBoards().then(boardNames => {
-            bot.sendMessage(id, 'Выбирай', {
-              reply_markup: {
-                keyboard: boardNames
-              }
-            });
-          });
+        //   getBoards().then(boardNames => {
+        //     bot.sendMessage(id, 'Выбирай', {
+        //       reply_markup: {
+        //         keyboard: boardNames
+        //       }
+        //     });
+        //   });
           break;
         case '/track_breakfast':
           onTrackBreakfastCommand(id, message);
@@ -71,7 +72,11 @@ exports.initialize = function() {
           bot.sendMessage(id, "Добро пожаловать. Отметьте время завтрака командой /track_breakfast и отвечайте на вопросы бота.");
           break;
         default:
-          bot.sendMessage(id, 'Неизвестная команда');
+          console.log(message.text)
+          analyzeText(message.text).then(response => {
+            console.log(response);
+          })
+          // bot.sendMessage(id, 'Неизвестная команда');
           break
       }
     });
@@ -178,9 +183,10 @@ exports.initialize = function() {
         var routes = require("../trello/routes");
         
         var getBoardsNames = function({ data: boards }) {
-            var boardNames = _.map(boards, board => {
-              return [board.name];
-            });
+          trelloBoards = boards;
+          return _.map(boards, board => {
+            return [board.name];
+          });
         };
     
         var onErrorCallback = function(error) {
@@ -194,4 +200,33 @@ exports.initialize = function() {
             }, onErrorCallback);
       });
     };
+
+    var analyzeText = function(text) {
+      return axios({
+        method: "POST",
+        type: "POST",
+        url: `${config.IBM_NLP.host}/api/v1/analyze?version=2018-11-16`,
+        headers: { "Content-Type": "application/json" },
+        auth: {
+          username: 'apikey',
+          password: config.IBM_NLP.key
+        },
+        data: JSON.stringify({
+          text: text,
+          return_analyzed_text: true,
+          features: {
+            entities: {
+              emotion: true,
+              sentiment: true,
+              limit: 8
+            },
+            keywords: {
+              emotion: true,
+              sentiment: true,
+              limit: 8
+            }
+          }
+        })
+      });
+    } 
 };

@@ -1,5 +1,6 @@
 var config = require("./config");
 var express = require("express");
+var axios = require("axios");
 var ReminderBot = require("./bot/index.es5");
 var TrelloAPI = require("./trello/index.es5");
 
