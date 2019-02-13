@@ -25,55 +25,78 @@ exports.initialize = function() {
     }, {
       text: 'Потом'
     }];
+    var trelloBoards = null;
     
     bot.on('message', (message) => {
       const { chat: { id }} = message;
-    
-      switch(message.text) {
-        case 'Хочу посмотреть доски':
-          getBoards().then(boardNames => {
+      console.log(message)
+
+      if (message.text === 'Хочу посмотреть доски') {
+        getBoards().then(options => {
+          trelloBoards = options.boards;
             bot.sendMessage(id, 'Выбирай', {
               reply_markup: {
-                keyboard: boardNames
+                keyboard: options.mappedNames,
+                one_time_keyboard: true
               }
             });
           });
-          break;
-        case '/track_breakfast':
-          onTrackBreakfastCommand(id, message);
-          break;
-        case 'Когда еда?':
-          onAskWhenNextMeal(id, message);
-          break;
-        case 'Да, поел':
-          previousMealTime = new Date(message.date * 1000);
-          var leftMealsCounter = 5 - dayMealsCounter;
-          bot.sendMessage(id, 'Это хорошо, осталось еще ' + leftMealsCounter + ' раза и можно спать :)');
-          startTimer(id);
-          break;
-        case 'Еще нет':
-          bot.sendMessage(id, 'Отложите дела на пару минут, на сытую голову и думаться лучше будет!');
-          startTimerForCheck(id);
-          break;
-        case intervals[0].text:
-          onIntervalSelect(id, intervals[0]);
-          break;
-        case intervals[1].text:
-          onIntervalSelect(id,intervals[1]);
-          break;
-        case intervals[2].text:
-          onIntervalSelect(id, intervals[2]);
-          break;
-        case intervals[3].text:
-          onIntervalSelect(id, intervals[3]);
-          break;
-        case '/start':
-          bot.sendMessage(id, "Добро пожаловать. Отметьте время завтрака командой /track_breakfast и отвечайте на вопросы бота.");
-          break;
-        default:
-          bot.sendMessage(id, 'Неизвестная команда');
-          break
       }
+
+      if (message.text.substring(0, 6) === 'Доска:') {
+        onBoardSelected(id, message);
+      }
+    
+      // switch(true) {
+      //   case 'Хочу посмотреть доски'.test(message.text):
+      //   console.log('доски')
+      //   //   getBoards().then(options => {
+      //   //   trelloBoards = options.boards;
+      //   //     bot.sendMessage(id, 'Выбирай', {
+      //   //       reply_markup: {
+      //   //         keyboard: options.mappedNames
+      //   //       }
+      //   //     });
+      //   //   });
+      //     break;
+      //   // case /^Доска: /.test(message.text):
+      //   //   onBoardSelected(id, message);
+      //   //   break;  
+      //   case '/track_breakfast'.test(message.text):
+      //     onTrackBreakfastCommand(id, message);
+      //     break;
+      //   case 'Когда еда?'.test(message.text):
+      //     onAskWhenNextMeal(id, message);
+      //     break;
+      //   case 'Да, поел'.test(message.text):
+      //     previousMealTime = new Date(message.date * 1000);
+      //     var leftMealsCounter = 5 - dayMealsCounter;
+      //     bot.sendMessage(id, 'Это хорошо, осталось еще ' + leftMealsCounter + ' раза и можно спать :)');
+      //     startTimer(id);
+      //     break;
+      //   case 'Еще нет'.test(message.text):
+      //     bot.sendMessage(id, 'Отложите дела на пару минут, на сытую голову и думаться лучше будет!');
+      //     startTimerForCheck(id);
+      //     break;
+      //   case intervals[0].text.test(message.text):
+      //     onIntervalSelect(id, intervals[0]);
+      //     break;
+      //   case intervals[1].text.test(message.text):
+      //     onIntervalSelect(id,intervals[1]);
+      //     break;
+      //   case intervals[2].text.test(message.text):
+      //     onIntervalSelect(id, intervals[2]);
+      //     break;
+      //   case intervals[3].text.test(message.text):
+      //     onIntervalSelect(id, intervals[3]);
+      //     break;
+      //   case '/start'.test(message.text):
+      //     bot.sendMessage(id, "Добро пожаловать. Отметьте время завтрака командой /track_breakfast и отвечайте на вопросы бота.");
+      //     break;
+      //   default:
+      //     bot.sendMessage(id, 'Неизвестная команда');
+      //     break
+      // }
     });
     
     var onTrackBreakfastCommand = function(id, message) {
@@ -170,17 +193,18 @@ exports.initialize = function() {
         return hours + " ч " + minutes + " м " + seconds + " с ";
     };
 
+    var axios = require("axios");
+    var _ = require("lodash");
+    var config = require("../config");
+    var routes = require("../trello/routes");
+
     var getBoards = function() {
       return new Promise((resolve, reject) => {
-        var axios = require("axios");
-        var _ = require("lodash");
-        var config = require("../config");
-        var routes = require("../trello/routes");
-        
         var getBoardsNames = function({ data: boards }) {
             var boardNames = _.map(boards, board => {
-              return [board.name];
+              return ['Доска: ' + board.name];
             });
+            return boardNames;
         };
     
         var onErrorCallback = function(error) {
@@ -190,8 +214,23 @@ exports.initialize = function() {
         axios
             .get(routes.getUserBoardsUrl())
             .then((response) => {
-              resolve(getBoardsNames(response));
+              resolve({ boards: response.data, mappedNames: getBoardsNames(response) });
             }, onErrorCallback);
       });
+    };
+
+    var onBoardSelected = function(id, message) {
+      if (trelloBoards) {
+        var board = _.find(trelloBoards, { name: message.text.replace('Доска: ', '')});
+        axios
+          .get(routes.getBoardsCardsUrl(board.id))
+          .then(response => {
+            var cards = _.map(response.data, card => {
+              return card.name;
+            })
+            bot.sendMessage(id, 'Вот задачи: ' + cards.join('\n'));
+            console.log(response.data);
+          })
+      }
     };
 };
